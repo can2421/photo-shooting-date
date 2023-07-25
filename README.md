@@ -1,4 +1,4 @@
-# set-photos-date
+# photo-shooting-date
 
 ## Project setup
 ```
