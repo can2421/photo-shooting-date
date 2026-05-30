@@ -214,11 +214,15 @@ function binaryStringToUint8Array(value) {
 }
 
 function getImageMimeType(imageType, fallback) {
-  if (fallback) {
-    return fallback;
+  if (imageType === IMAGE_TYPE_PNG) {
+    return "image/png";
   }
 
-  return imageType === IMAGE_TYPE_PNG ? "image/png" : "image/jpeg";
+  if (imageType === IMAGE_TYPE_JPEG) {
+    return "image/jpeg";
+  }
+
+  return fallback;
 }
 
 function readUint32(bytes, offset) {
