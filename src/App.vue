@@ -8,7 +8,7 @@
           drag
           action="#"
           multiple
-          accept=".jpeg,.jpg"
+          accept=".jpeg,.jpg,.png"
           :auto-upload="false"
           :before-upload="onBeforeUpload"
         >
@@ -17,7 +17,7 @@
             拖动图片到区域内或 <em>点击选择图片</em>
           </div>
           <template #tip>
-            <div class="el-upload__tip">jpg/jpeg</div>
+            <div class="el-upload__tip">jpg/jpeg/png</div>
           </template>
         </ElUpload>
       </div>
@@ -96,13 +96,14 @@ async function getImageFileType(file) {
 }
 
 async function onBeforeUpload(file) {
-  const isJpeg = await getImageFileType(file) === IMAGE_TYPE_JPEG;
+  const imageType = await getImageFileType(file);
+  const isSupportedImage = imageType === IMAGE_TYPE_JPEG || imageType === IMAGE_TYPE_PNG;
 
-  if (!isJpeg) {
-    ElMessage.error("仅支持 jpg/jpeg 图片");
+  if (!isSupportedImage) {
+    ElMessage.error("仅支持 jpg/jpeg/png 图片");
   }
 
-  return isJpeg;
+  return isSupportedImage;
 }
 
 function formatExifDateTime(value) {
