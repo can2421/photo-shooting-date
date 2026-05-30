@@ -63,6 +63,16 @@ function handleClear() {
   result.value = [];
 }
 
+function onBeforeUpload(file) {
+  const isJpeg = file.type === "image/jpeg" || /\.(jpe?g)$/i.test(file.name);
+
+  if (!isJpeg) {
+    ElMessage.error("仅支持 jpg/jpeg 图片");
+  }
+
+  return isJpeg;
+}
+
 function handleChangeDate() {
   if(!dateTime.value) {
     ElMessage.error('未选择拍摄日期时间')
