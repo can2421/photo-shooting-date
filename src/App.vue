@@ -17,7 +17,7 @@
             拖动图片到区域内或 <em>点击选择图片</em>
           </div>
           <template #tip>
-            <div class="el-upload__tip">jpg/jepg</div>
+            <div class="el-upload__tip">jpg/jpeg</div>
           </template>
         </ElUpload>
       </div>
