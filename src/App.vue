@@ -140,6 +140,7 @@ async function handleChangeDate() {
     await Promise.all(unref(files.value).map((item) => insertPhoto(date, item.raw, item.name)));
   } catch(e) {
     console.error(e)
+    ElMessage.error(e.message || '图片处理失败')
   } finally {
     updateLoading.value = false
   }
@@ -306,6 +307,10 @@ async function insertPhoto(dateTime, file, fileName) {
       raw: new File([inserted], fileName, { type: getImageMimeType(imageType, file.type) }),
     });
     return
+  }
+
+  if (imageType !== IMAGE_TYPE_JPEG) {
+    throw new Error(`${fileName} 不是支持的图片格式`);
   }
 
   const inserted = piexifjs.insert(exifStr, await readFileAsDataURL(file));
