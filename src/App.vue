@@ -57,14 +57,44 @@ const result = ref([]);
 const dateTime = ref("");
 const updateLoading = ref(false)
 const downloading = ref(false)
+const IMAGE_TYPE_JPEG = "jpeg"
+const IMAGE_TYPE_PNG = "png"
+const JPEG_SIGNATURE = [0xff, 0xd8, 0xff]
+const PNG_SIGNATURE = [137, 80, 78, 71, 13, 10, 26, 10]
 
 function handleClear() {
   files.value = [];
   result.value = [];
 }
 
-function onBeforeUpload(file) {
-  const isJpeg = file.type === "image/jpeg" || /\.(jpe?g)$/i.test(file.name);
+function isJpegData(bytes) {
+  return JPEG_SIGNATURE.every((byte, index) => bytes[index] === byte);
+}
+
+function isPngData(bytes) {
+  return PNG_SIGNATURE.every((byte, index) => bytes[index] === byte);
+}
+
+function getImageTypeFromBytes(bytes) {
+  if (isJpegData(bytes)) {
+    return IMAGE_TYPE_JPEG;
+  }
+
+  if (isPngData(bytes)) {
+    return IMAGE_TYPE_PNG;
+  }
+
+  return "";
+}
+
+async function getImageFileType(file) {
+  const bytes = new Uint8Array(await file.slice(0, PNG_SIGNATURE.length).arrayBuffer());
+
+  return getImageTypeFromBytes(bytes);
+}
+
+async function onBeforeUpload(file) {
+  const isJpeg = await getImageFileType(file) === IMAGE_TYPE_JPEG;
 
   if (!isJpeg) {
     ElMessage.error("仅支持 jpg/jpeg 图片");
