@@ -135,9 +135,11 @@ async function handleChangeDate() {
     return
   }
   updateLoading.value = true
+  result.value = []
   try {
     const date = formatExifDateTime(dateTime.value)
-    await Promise.all(unref(files.value).map((item) => insertPhoto(date, item.raw, item.name)));
+    const updatedFiles = await Promise.all(unref(files.value).map((item) => insertPhoto(date, item.raw, item.name)));
+    result.value = updatedFiles
   } catch(e) {
     console.error(e)
     ElMessage.error(e.message || '图片处理失败')
@@ -306,11 +308,10 @@ async function insertPhoto(dateTime, file, fileName) {
   if (imageType === IMAGE_TYPE_PNG) {
     const inserted = insertPngExif(new Uint8Array(await file.arrayBuffer()), exifStr);
 
-    result.value.push({
+    return {
       name: fileName,
       raw: new File([inserted], fileName, { type: getImageMimeType(imageType, file.type) }),
-    });
-    return
+    };
   }
 
   if (imageType !== IMAGE_TYPE_JPEG) {
@@ -319,10 +320,10 @@ async function insertPhoto(dateTime, file, fileName) {
 
   const inserted = piexifjs.insert(exifStr, await readFileAsDataURL(file));
 
-  result.value.push({
+  return {
     name: fileName,
     raw: base64ToFile(inserted, fileName, getImageMimeType(imageType, file.type)),
-  });
+  };
 }
 </script>
 
