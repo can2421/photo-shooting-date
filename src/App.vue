@@ -11,6 +11,7 @@
           accept=".jpeg,.jpg,.png"
           :auto-upload="false"
           :before-upload="onBeforeUpload"
+          :on-change="handleUploadChange"
         >
           <ElIcon class="el-icon--upload"><UploadFilled /></ElIcon>
           <div class="el-upload__text">
@@ -95,15 +96,30 @@ async function getImageFileType(file) {
   return getImageTypeFromBytes(bytes);
 }
 
+function isSupportedImageType(imageType) {
+  return imageType === IMAGE_TYPE_JPEG || imageType === IMAGE_TYPE_PNG;
+}
+
 async function onBeforeUpload(file) {
   const imageType = await getImageFileType(file);
-  const isSupportedImage = imageType === IMAGE_TYPE_JPEG || imageType === IMAGE_TYPE_PNG;
+  const isSupportedImage = isSupportedImageType(imageType);
 
   if (!isSupportedImage) {
     ElMessage.error("仅支持 jpg/jpeg/png 图片");
   }
 
   return isSupportedImage;
+}
+
+async function handleUploadChange(uploadFile) {
+  const rawFile = uploadFile.raw;
+
+  if (!rawFile || isSupportedImageType(await getImageFileType(rawFile))) {
+    return;
+  }
+
+  files.value = files.value.filter((file) => file.uid !== uploadFile.uid);
+  ElMessage.error("仅支持 jpg/jpeg/png 图片");
 }
 
 function formatExifDateTime(value) {
