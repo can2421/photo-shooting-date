@@ -146,7 +146,7 @@ function insertPhoto(dateTime, file, fileName) {
       const inserted = piexifjs.insert(exifStr, e.target.result);
       result.value.push({
         name: fileName,
-        raw: base64ToFile(inserted, file.type, fileName),
+        raw: base64ToFile(inserted, fileName, file.type),
       });
       resolve()
     };
