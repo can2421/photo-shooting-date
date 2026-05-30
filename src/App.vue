@@ -80,7 +80,7 @@ function formatExifDateTime(value) {
   return `${date.getFullYear()}:${pad(date.getMonth() + 1)}:${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
 }
 
-function handleChangeDate() {
+async function handleChangeDate() {
   if(!dateTime.value) {
     ElMessage.error('未选择拍摄日期时间')
     return
@@ -88,14 +88,10 @@ function handleChangeDate() {
   updateLoading.value = true
   try {
     const date = formatExifDateTime(dateTime.value)
-    unref(files.value).forEach(async (item, index) => {
-      await insertPhoto(date, item.raw, item.name)
-      if(index === files.value.length - 1) {
-        updateLoading.value = false
-      }
-    });
+    await Promise.all(unref(files.value).map((item) => insertPhoto(date, item.raw, item.name)));
   } catch(e) {
     console.error(e)
+  } finally {
     updateLoading.value = false
   }
 }
