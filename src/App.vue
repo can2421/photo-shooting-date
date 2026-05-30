@@ -73,6 +73,13 @@ function onBeforeUpload(file) {
   return isJpeg;
 }
 
+function formatExifDateTime(value) {
+  const date = new Date(value);
+  const pad = (num) => String(num).padStart(2, "0");
+
+  return `${date.getFullYear()}:${pad(date.getMonth() + 1)}:${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
+
 function handleChangeDate() {
   if(!dateTime.value) {
     ElMessage.error('未选择拍摄日期时间')
@@ -80,8 +87,7 @@ function handleChangeDate() {
   }
   updateLoading.value = true
   try {
-    const date = new Date(dateTime.value).toLocaleString().replace(/\//g, ':')
-    console.log(date);
+    const date = formatExifDateTime(dateTime.value)
     unref(files.value).forEach(async (item, index) => {
       await insertPhoto(date, item.raw, item.name)
       if(index === files.value.length - 1) {
