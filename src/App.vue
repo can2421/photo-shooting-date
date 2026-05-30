@@ -61,6 +61,8 @@ const IMAGE_TYPE_JPEG = "jpeg"
 const IMAGE_TYPE_PNG = "png"
 const JPEG_SIGNATURE = [0xff, 0xd8, 0xff]
 const PNG_SIGNATURE = [137, 80, 78, 71, 13, 10, 26, 10]
+const PNG_CHUNK_TYPE_EXIF = "eXIf"
+const PNG_CHUNK_TYPE_IDAT = "IDAT"
 
 function handleClear() {
   files.value = [];
@@ -165,23 +167,136 @@ function base64ToFile(base64String, fileName, mimeType) {
   return file;
 }
 
-function insertPhoto(dateTime, file, fileName) {
-  return new Promise((resolve) => {
-    const exif = {
-      [piexifjs.ExifIFD.DateTimeOriginal]: dateTime,
-    };
-    const exifStr = piexifjs.dump({ Exif: exif });
+function createExifString(dateTime) {
+  const exif = {
+    [piexifjs.ExifIFD.DateTimeOriginal]: dateTime,
+  };
+
+  return piexifjs.dump({ Exif: exif });
+}
+
+function readFileAsDataURL(file) {
+  return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = function (e) {
-      const inserted = piexifjs.insert(exifStr, e.target.result);
-      result.value.push({
-        name: fileName,
-        raw: base64ToFile(inserted, fileName, file.type),
-      });
-      resolve()
-    };
+
+    reader.onload = (e) => resolve(e.target.result);
+    reader.onerror = () => reject(reader.error);
     reader.readAsDataURL(file);
-  })
+  });
+}
+
+function binaryStringToUint8Array(value) {
+  const bytes = new Uint8Array(value.length);
+
+  for (let index = 0; index < value.length; index += 1) {
+    bytes[index] = value.charCodeAt(index);
+  }
+
+  return bytes;
+}
+
+function getImageMimeType(imageType, fallback) {
+  if (fallback) {
+    return fallback;
+  }
+
+  return imageType === IMAGE_TYPE_PNG ? "image/png" : "image/jpeg";
+}
+
+function readUint32(bytes, offset) {
+  return new DataView(bytes.buffer, bytes.byteOffset + offset, 4).getUint32(0);
+}
+
+function writeUint32(bytes, offset, value) {
+  bytes[offset] = (value >>> 24) & 0xff;
+  bytes[offset + 1] = (value >>> 16) & 0xff;
+  bytes[offset + 2] = (value >>> 8) & 0xff;
+  bytes[offset + 3] = value & 0xff;
+}
+
+function getPngChunkType(bytes, offset) {
+  return String.fromCharCode(bytes[offset + 4], bytes[offset + 5], bytes[offset + 6], bytes[offset + 7]);
+}
+
+function getCrc32(bytes) {
+  let crc = 0xffffffff;
+
+  for (const byte of bytes) {
+    crc ^= byte;
+
+    for (let bit = 0; bit < 8; bit += 1) {
+      crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0);
+    }
+  }
+
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function createPngChunk(type, data) {
+  const typeBytes = binaryStringToUint8Array(type);
+  const chunk = new Uint8Array(12 + data.length);
+
+  writeUint32(chunk, 0, data.length);
+  chunk.set(typeBytes, 4);
+  chunk.set(data, 8);
+  writeUint32(chunk, 8 + data.length, getCrc32(chunk.slice(4, 8 + data.length)));
+
+  return chunk;
+}
+
+function insertPngExif(bytes, exifStr) {
+  const exifBytes = binaryStringToUint8Array(exifStr.slice(6));
+  const exifChunk = createPngChunk(PNG_CHUNK_TYPE_EXIF, exifBytes);
+  const chunks = [];
+  let insertedExif = false;
+  let offset = PNG_SIGNATURE.length;
+
+  chunks.push(bytes.slice(0, offset));
+
+  while (offset < bytes.length) {
+    const length = readUint32(bytes, offset);
+    const chunkEnd = offset + 12 + length;
+    const chunkType = getPngChunkType(bytes, offset);
+
+    if (!insertedExif && chunkType === PNG_CHUNK_TYPE_IDAT) {
+      chunks.push(exifChunk);
+      insertedExif = true;
+    }
+
+    if (chunkType !== PNG_CHUNK_TYPE_EXIF) {
+      chunks.push(bytes.slice(offset, chunkEnd));
+    }
+
+    offset = chunkEnd;
+  }
+
+  if (!insertedExif) {
+    chunks.splice(2, 0, exifChunk);
+  }
+
+  return new Blob(chunks, { type: "image/png" });
+}
+
+async function insertPhoto(dateTime, file, fileName) {
+  const exifStr = createExifString(dateTime);
+  const imageType = await getImageFileType(file);
+
+  if (imageType === IMAGE_TYPE_PNG) {
+    const inserted = insertPngExif(new Uint8Array(await file.arrayBuffer()), exifStr);
+
+    result.value.push({
+      name: fileName,
+      raw: new File([inserted], fileName, { type: getImageMimeType(imageType, file.type) }),
+    });
+    return
+  }
+
+  const inserted = piexifjs.insert(exifStr, await readFileAsDataURL(file));
+
+  result.value.push({
+    name: fileName,
+    raw: base64ToFile(inserted, fileName, getImageMimeType(imageType, file.type)),
+  });
 }
 </script>
 
